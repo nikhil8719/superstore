@@ -1,0 +1,151 @@
+---
+title: "uber analysis"
+author: "Nikhil"
+date: "2023-02-26"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Installing & calling the packages 
+```{r, message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(ggthemes)
+library(tidyr)
+library(scales)
+library(DT)
+```
+
+# load the data and create your first join :)
+```{r}
+apr_data <- read.csv("uber-raw-data-apr14.csv")
+may_data <- read.csv("uber-raw-data-may14.csv")
+jun_data <- read.csv("uber-raw-data-jun14.csv")
+jul_data <- read.csv("uber-raw-data-jul14.csv")
+aug_data <- read.csv("uber-raw-data-aug14.csv")
+sep_data <- read.csv("uber-raw-data-sep14.csv")
+
+data_2014 <- rbind(apr_data, may_data, jun_data, jul_data, aug_data, sep_data)
+```
+
+# Now we Clean the data 
+1. Posixct encodes the date and time as number of seconds from 1970
+2. Posixlt stores date and time as a list of month, date and time 
+3. Bote the Posix formats allow us subtraction between 2 dates 
+```{r}
+#Make data set familiar with format using POSIXct
+data_2014$Date.Time <- as.POSIXct(data_2014$Date.Time, format = "%m/%d/%Y %H:%M:%S")
+
+#Done to divide time column 
+data_2014$Time <- format(as.POSIXct(data_2014$Date.Time, format = "%m/%d/%y %H:%M:%S"), format = "%H:%M:%S")
+data_2014$Date.Time <- ymd_hms(data_2014$Date.Time)
+
+# Now we divide by month, day, year 
+data_2014$Day <- factor(day(data_2014$Date.Time))
+data_2014$Month <- factor(month(data_2014$Date.Time))
+data_2014$year <- factor(year(data_2014$Date.Time))
+data_2014$Day_of_week <- factor(wday(data_2014$Date.Time, label = TRUE))
+
+#Now we divide the time 
+data_2014$hour <- factor(hour(data_2014$Date.Time))
+data_2014$minute <- factor(minute(data_2014$Date.Time))
+data_2014$second <- factor(second(data_2014$Date.Time))
+```
+
+
+
+# Plotting data for number of trips in an hour 
+```{r, message=FALSE}
+hour_table2 <- data_2014 %>% 
+  group_by(hour) %>% 
+  dplyr::summarize(total = n())
+
+ggplot(hour_table2, aes(hour, total)) +
+  geom_bar(stat = "identity", fill = "steelblue", color = "red") +
+  ggtitle("Maximum number of trips taken between 5:00 - 6:00 Pm")+
+  theme(legend.position = "none")+
+  scale_y_continuous(labels = comma)
+ 
+```
+
+
+
+# Plotting trips by hour and month 
+```{r, message=FALSE}
+month_tab <- data_2014 %>% 
+  group_by(Month, hour) %>% 
+  summarize(total = n())
+
+ggplot(month_tab, aes(hour, total, fill = Month)) +
+  geom_bar(stat = "identity", ) +
+  ggtitle("trips by month") +
+  theme(legend.position = "none") +
+  scale_y_continuous(labels = comma) 
+```
+
+
+# Plotting by trips taken every day 
+```{r, message=FALSE}
+day_tab <- data_2014 %>% 
+  group_by(Day) %>% 
+  summarize(total = n())
+
+ggplot(day_tab, aes(Day, total)) +
+  geom_bar(stat = "identity", fill = "steelblue" ,color = "red")+
+  ggtitle("trips taken every day")+
+  theme(legend.position = "none")
+```
+
+
+# Plotting trips every day of the month (Dodge bar chart)
+```{r, message=FALSE}
+day_month_tab <- data_2014 %>% 
+  group_by(Month, Day_of_week) %>% 
+  summarize(total = n())
+
+ggplot(day_month_tab, aes(Month, total, fill = Day_of_week))+
+  geom_bar(stat = "identity", position = "dodge")
+```
+
+# Number of Trips taking place during months in a year
+```{r, message=FALSE}
+month_year_tab <- data_2014 %>% 
+  group_by(year, Month) %>% 
+  summarize(total = n())
+
+ggplot(month_year_tab, aes(Month, total)) + 
+  geom_bar(stat = "identity", fill = "steelblue", color = "red") +
+  ggtitle("Number of Trips taking place during months in a year") +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = colors)
+```
+
+# trips of month by weekday 
+```{r, message=FALSE}
+month_weekday <- data_2014 %>% 
+  group_by(Month, Day_of_week) %>% 
+  summarize(total = n())
+
+ggplot(month_weekday, aes(Month, total, fill = Day_of_week)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("trips of month by weekday") +
+  theme(legend.position = "none")
+
+```
+
+# heatmap representing rides taken on different day of week in a month
+```{r, message=FALSE}
+ggplot(month_weekday, aes(Month, Day_of_week, fill = total)) +
+  geom_tile(color ="white") +
+  ggtitle("heatmap representing rides taken on different day of week in a month")
+
+```
+
+
+
